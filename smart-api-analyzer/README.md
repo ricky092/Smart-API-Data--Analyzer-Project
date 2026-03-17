@@ -1,6 +1,8 @@
 # Smart API Data Analyzer
 
-A production-ready GitHub profile intelligence dashboard built with Python and Streamlit.
+🚀 **Live Demo:** [smadarr.streamlit.app](https://smadarr.streamlit.app)
+
+A production-ready dual-mode data analyzer built with Python and Streamlit — GitHub profile intelligence + Weather forecast dashboard.
 
 ## Features
 
