@@ -30,6 +30,71 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Theme toggle ──────────────────────────────────────────────────────────────
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = True
+
+DARK_CSS = """
+<style>
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+        background-color: #0E1117 !important;
+        color: #FAFAFA !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #1A1D27 !important;
+    }
+    [data-testid="stMetric"] {
+        background-color: #1A1D27 !important;
+        border-radius: 8px;
+        padding: 12px;
+    }
+    .stDataFrame, [data-testid="stTable"] {
+        background-color: #1A1D27 !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #AAAAAA !important;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #636EFA !important;
+        border-bottom: 2px solid #636EFA !important;
+    }
+    div[data-testid="stExpander"] {
+        background-color: #1A1D27 !important;
+        border-radius: 8px;
+    }
+</style>
+"""
+
+LIGHT_CSS = """
+<style>
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+        background-color: #FFFFFF !important;
+        color: #0E1117 !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #F0F2F6 !important;
+    }
+    [data-testid="stMetric"] {
+        background-color: #F0F2F6 !important;
+        border-radius: 8px;
+        padding: 12px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #555555 !important;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #636EFA !important;
+        border-bottom: 2px solid #636EFA !important;
+    }
+    div[data-testid="stExpander"] {
+        background-color: #F0F2F6 !important;
+        border-radius: 8px;
+    }
+</style>
+"""
+
+st.markdown(DARK_CSS if st.session_state.dark_mode else LIGHT_CSS, unsafe_allow_html=True)
+
 # ── Cached API wrappers ───────────────────────────────────────────────────────
 @ttl_cache(seconds=300)
 def cached_fetch_user(username, token):
@@ -62,6 +127,13 @@ def cached_historical(lat, lon, start, end, timezone):
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("🔍 Smart API Analyzer")
+
+    # Dark / Light toggle
+    theme_label = "☀️ Light Mode" if st.session_state.dark_mode else "🌙 Dark Mode"
+    if st.button(theme_label, use_container_width=True):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        st.rerun()
+
     st.divider()
 
     mode = st.radio("Select Mode", ["🐙 GitHub Analysis", "🌤️ Weather Forecast"], label_visibility="collapsed")
@@ -139,15 +211,15 @@ if mode == "🐙 GitHub Analysis":
         st.subheader("Top Repositories by Stars")
         st.dataframe(top_repos(df), use_container_width=True, hide_index=True)
         st.subheader("Stars vs Forks")
-        st.plotly_chart(stars_scatter(df), use_container_width=True)
+        st.plotly_chart(stars_scatter(df, st.session_state.dark_mode), use_container_width=True)
         st.subheader("Activity Score — Top 10")
-        st.plotly_chart(activity_bar(activity_score(df)), use_container_width=True)
+        st.plotly_chart(activity_bar(activity_score(df), st.session_state.dark_mode), use_container_width=True)
 
     with tab2:
         st.subheader("Language Breakdown")
         repo_lang = language_breakdown(df)
         c1, c2 = st.columns(2)
-        c1.plotly_chart(repo_language_bar(repo_lang), use_container_width=True)
+        c1.plotly_chart(repo_language_bar(repo_lang, st.session_state.dark_mode), use_container_width=True)
         with st.spinner("Loading language byte data..."):
             lang_maps = []
             for repo_name in df.nlargest(10, "stargazers_count")["name"].tolist():
@@ -156,7 +228,7 @@ if mode == "🐙 GitHub Analysis":
                     lang_maps.append(lmap)
                 time.sleep(0.05)
         if lang_maps:
-            c2.plotly_chart(language_pie(aggregate_languages(lang_maps)), use_container_width=True)
+            c2.plotly_chart(language_pie(aggregate_languages(lang_maps), st.session_state.dark_mode), use_container_width=True)
         else:
             c2.info("No language byte data available.")
 
@@ -171,7 +243,7 @@ if mode == "🐙 GitHub Analysis":
             raw_commits = cached_fetch_commits(username, selected_repo, token)
         commit_df = process_commit_activity(raw_commits)
         if not commit_df.empty and commit_df["commits"].sum() > 0:
-            st.plotly_chart(commit_trend(commit_df), use_container_width=True)
+            st.plotly_chart(commit_trend(commit_df, st.session_state.dark_mode), use_container_width=True)
             m1, m2, m3 = st.columns(3)
             m1.metric("Total Commits (52w)", int(commit_df["commits"].sum()))
             m2.metric("Peak Week", commit_df.loc[commit_df["commits"].idxmax(), "week"].strftime("%b %d, %Y"))
@@ -240,18 +312,18 @@ else:
 
     with tab1:
         st.subheader("7-Day Temperature Forecast")
-        st.plotly_chart(temperature_range_chart(daily_df), use_container_width=True)
+        st.plotly_chart(temperature_range_chart(daily_df, st.session_state.dark_mode), use_container_width=True)
 
         st.subheader("Hourly Temperature & Humidity")
-        st.plotly_chart(hourly_temperature_chart(hourly_df), use_container_width=True)
+        st.plotly_chart(hourly_temperature_chart(hourly_df, st.session_state.dark_mode), use_container_width=True)
 
         if not hist_df.empty:
             st.subheader("30-Day Historical Trend")
-            st.plotly_chart(historical_temp_trend(hist_df), use_container_width=True)
+            st.plotly_chart(historical_temp_trend(hist_df, st.session_state.dark_mode), use_container_width=True)
 
     with tab2:
         st.subheader("Precipitation Forecast")
-        st.plotly_chart(precipitation_chart(daily_df), use_container_width=True)
+        st.plotly_chart(precipitation_chart(daily_df, st.session_state.dark_mode), use_container_width=True)
 
         st.subheader("Daily Breakdown")
         display_cols = ["day_label", "condition", "temp_max", "temp_min", "precipitation", "rain_chance"]
@@ -266,9 +338,9 @@ else:
 
     with tab3:
         c1, c2 = st.columns(2)
-        c1.plotly_chart(wind_chart(daily_df), use_container_width=True)
+        c1.plotly_chart(wind_chart(daily_df, st.session_state.dark_mode), use_container_width=True)
         if daily_df["uv_index"].notna().any():
-            c2.plotly_chart(uv_index_chart(daily_df), use_container_width=True)
+            c2.plotly_chart(uv_index_chart(daily_df, st.session_state.dark_mode), use_container_width=True)
         else:
             c2.info("UV index data not available for this location.")
 
